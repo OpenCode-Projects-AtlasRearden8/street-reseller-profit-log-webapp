@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flip Ledger — Street-Find Profit Log</title>
+<style>
+  :root {
+    --paper: #faf6ee;
+    --card: #fffdf7;
+    --ink: #2b2a25;
+    --muted: #6f6a5e;
+    --rust: #b0501e;
+    --rust-dark: #8c3f16;
+    --sage: #5d7a52;
+    --sage-light: #e7eee3;
+    --sand: #f0e7d6;
+    --line: #e2d9c6;
+    --danger: #a63a2e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.5;
+    padding: 1rem 0 3rem;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 1rem; }
+  header.top {
+    text-align: center;
+    padding: 1.6rem 1rem 1.2rem;
+    border-bottom: 2px solid var(--rust);
+    margin-bottom: 1.4rem;
+  }
+  header.top h1 {
+    font-size: 2rem;
+    letter-spacing: 0.03em;
+    color: var(--rust-dark);
+  }
+  header.top .tagline { color: var(--muted); font-style: italic; margin-top: 0.25rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.1rem 1.2rem;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 1px 3px rgba(60, 50, 30, 0.07);
+  }
+  .card h2 {
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--rust-dark);
+    margin-bottom: 0.8rem;
+    border-bottom: 1px dashed var(--line);
+    padding-bottom: 0.3rem;
+  }
+  .totals-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.7rem;
+  }
+  .stat {
+    background: var(--sand);
+    border-radius: 6px;
+    padding: 0.6rem 0.7rem;
+  }
+  .stat .label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    display: block;
+  }
+  .stat .value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat.profit .value.ok { color: var(--sage); }
+  .stat.profit .value.bad { color: var(--danger); }
+  form.add-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  form.add-flow label.small { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.2rem; }
+  form.add-flow input[type="text"],
+  form.add-flow input[type="number"],
+  form.add-flow select,
+  form.add-flow textarea {
+    width: 100%;
+    font-family: Georgia, serif;
+    font-size: 0.95rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--ink);
+  }
+  form.add-flow textarea { resize: vertical; min-height: 2.4rem; }
+  .seg { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+  .seg label { flex: 1; }
+  .seg input[type="radio"] { display: none; }
+  .seg label span {
+    display: block; text-align: center; padding: 0.42rem 0.3rem;
+    font-size: 0.85rem; cursor: pointer; background: #fff; color: var(--muted);
+  }
+  .seg input:checked + span { background: var(--rust); color: #fff; font-weight: bold; }
+  .seg input:checked + span.on-fast { background: var(--sage); }
+  form.add-flow .full { grid-column: 1 / -1; }
+  button {
+    font-family: Georgia, serif;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background: var(--rust);
+    color: #fff;
+  }
+  button:hover { background: var(--rust-dark); }
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+  }
+  button.ghost:hover { color: var(--ink); border-color: var(--muted); }
+  button.tiny { font-size: 0.75rem; padding: 0.28rem 0.6rem; }
+  button.danger-ghost { background: transparent; border: 1px solid var(--line); color: var(--danger); }
+  .grid2x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+  }
+  .axis-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+  }
+  .axis-row .hi { color: var(--rust-dark); font-weight: bold; }
+  .quad {
+    border-radius: 7px;
+    padding: 0.75rem 0.85rem;
+    cursor: pointer;
+    border: 2px solid transparent;
+    min-height: 6.2rem;
+  }
+  .quad:hover { border-color: var(--rust); }
+  .quad.active { border-color: var(--rust); box-shadow: 0 0 0 2px rgba(176, 80, 30, 0.2); }
+  .quad .q-label { font-weight: bold; font-size: 0.98rem; }
+  .quad .q-blurb { font-size: 0.8rem; font-style: italic; margin-top: 0.15rem; }
+  .quad .q-count {
+    font-size: 1.6rem;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    margin-top: 0.45rem;
+  }
+  .quad .q-top { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; }
+  .q-sweet { background: var(--sage-light); }
+  .q-sweet .q-label { color: var(--sage); }
+  .q-bread { background: #fdf3e3; }
+  .q-bread .q-label { color: var(--rust); }
+  .q-hang { background: #f3ecf5; }
+  .q-hang .q-label { color: #6d5a80; }
+  .q-pass { background: #f5e4e1; }
+  .q-pass .q-label { color: var(--danger); }
+  .table-wrap { overflow-x: auto; }
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  table.ledger th {
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    border-bottom: 2px solid var(--line);
+    padding: 0.4rem 0.5rem;
+    white-space: nowrap;
+  }
+  table.ledger td { padding: 0.5rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.ledger td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .money-out { color: var(--danger); }
+  .money-in { color: var(--sage); font-weight: bold; }
+  .badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .badge.st { background: var(--sand); color: var(--muted); }
+  .badge.li { background: #e9e2f2; color: #6d5a80; }
+  .badge.so { background: var(--sage-light); color: var(--sage); }
+  .comps-note { font-style: italic; color: var(--muted); font-size: 0.8rem; max-width: 16rem; }
+  .empty-note { color: var(--muted); font-style: italic; padding: 0.6rem 0; }
+  .filter-bar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; font-size: 0.85rem; color: var(--muted); }
+  .weekly-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.3rem; }
+  .week-key { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.05em; }
+  .weekly-prompt {
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--rust-dark);
+    margin-bottom: 0.7rem;
+  }
+  #weeklyText {
+    width: 100%;
+    font-family: Georgia, serif;
+    font-size: 0.95rem;
+    padding: 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    min-height: 5rem;
+    resize: vertical;
+    background: #fff;
+  }
+  .weekly-list { margin-top: 0.9rem; }
+  .weekly-list h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.4rem; }
+  .learn-entry {
+    background: var(--sand);
+    border-radius: 5px;
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.5rem;
+  }
+  .learn-entry .le-head { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.25rem; }
+  .learn-entry .le-head button { background: none; border: none; color: var(--danger); font-size: 0.72rem; padding: 0; cursor: pointer; text-decoration: underline; }
+  .learn-entry p { font-size: 0.88rem; white-space: pre-wrap; }
+  .solved-banner { background: var(--sage-light); color: var(--sage); }
+  .datasafe { margin-top: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .datasafe .hint { font-size: 0.75rem; color: var(--muted); }
+  footer.foot {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-top: 2rem;
+  }
+  footer.foot a { color: var(--rust-dark); }
+  .sale-editor { display: none; gap: 0.3rem; align-items: center; }
+  .sale-editor.open { display: flex; }
+  .sale-editor input { width: 5.5rem; font-family: Georgia, serif; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 4px; }
+  @media (max-width: 640px) {
+    form.add-flow { grid-template-columns: 1fr; }
+    .grid2x2 { grid-template-columns: 1fr; }
+    header.top h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Flip Ledger</h1>
+    <p class="tagline">street-find profit log &middot; fun-to-list &times; fast-to-move</p>
+  </header>
+
+  <section class="card">
+    <h2>Season totals</h2>
+    <div class="totals-strip" id="totalsStrip"></div>
+  </section>
+
+  <section class="card">
+    <h2>Log a find</h2>
+    <form class="add-flow" id="addForm">
+      <div>
+        <label class="small" for="fName">Find</label>
+        <input type="text" id="fName" required placeholder="e.g. Pyrex butterprint casserole">
+      </div>
+      <div>
+        <label class="small" for="fCategory">Preset category</label>
+        <select id="fCategory"></select>
+      </div>
+      <div>
+        <label class="small" for="fCost">Cost paid ($)</label>
+        <input type="number" id="fCost" min="0" step="0.01" required placeholder="3.00">
+      </div>
+      <div>
+        <label class="small">Fun to list?</label>
+        <div class="seg" id="fFun">
+          <label><input type="radio" name="fun" value="yes" checked><span>A joy</span></label>
+          <label><input type="radio" name="fun" value="no"><span>A drag</span></label>
+        </div>
+      </div>
+      <div>
+        <label class="small">Fast to move?</label>
+        <div class="seg" id="fFast">
+          <label><input type="radio" name="fast" value="yes" checked><span class="on-fast">Sells quick</span></label>
+          <label><input type="radio" name="fast" value="no"><span>Sits a while</span></label>
+        </div>
+      </div>
+      <div>
+        <label class="small">Status</label>
+        <select id="fStatus">
+          <option value="stashed">Stashed at home</option>
+          <option value="listed">Listed online</option>
+          <option value="sold">Already sold</option>
+        </select>
+      </div>
+      <div class="full">
+        <label class="small" for="fComps">Comps-search note (what the sold listings told you)</label>
+        <textarea id="fComps" placeholder="e.g. 3 solds $25-$38, fastest 2 days; watch for chips on lids"></textarea>
+      </div>
+      <div class="full" id="saleField" style="display:none;">
+        <label class="small" for="fSale">Sale price ($)</label>
+        <input type="number" id="fSale" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="full">
+        <button type="submit">Add find</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Flip-ability grid</h2>
+    <div class="axis-row"><span>Fast to move: <span class="hi">quick</span></span><span>List joy: <span class="hi">drag</span> &rarr; a joy</span></div>
+    <div class="grid2x2" id="grid2x2"></div>
+    <p class="empty-note" id="gridHint" style="margin-top:0.6rem;">Tap a quadrant to filter the ledger below. Tap again to clear.</p>
+  </section>
+
+  <section class="card">
+    <h2>The ledger</h2>
+    <div class="filter-bar" id="filterBar" style="display:none;">
+      <span id="filterLabel"></span>
+      <button type="button" class="tiny ghost" id="clearFilter">Show all</button>
+    </div>
+    <div class="table-wrap">
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th>Find</th><th>Category</th><th>Cost</th><th>Sale</th><th>Profit</th>
+            <th>Status</th><th>Comps note</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+    <p class="empty-note" id="ledgerEmpty">No finds logged yet. Your first flip starts below (or up top).</p>
+  </section>
+
+  <section class="card">
+    <h2>What I learned this week</h2>
+    <div class="weekly-head">
+      <span class="week-key" id="weekKey"></span>
+      <span class="week-key" id="weekDay">Heads up every Monday &mdash; same prompt rotates fresh each week.</span>
+    </div>
+    <p class="weekly-prompt" id="weeklyPrompt"></p>
+    <textarea id="weeklyText" placeholder="Plain words. What did the finds, the comps, and the silence teach you?"></textarea>
+    <div style="margin-top:0.6rem;">
+      <button type="button" id="saveWeekly">Save this week's takeaway</button>
+    </div>
+    <div class="weekly-list" id="weeklyList"></div>
+  </section>
+
+  <section class="card">
+    <h2>Your data, your machine</h2>
+    <p class="empty-note" style="padding:0;">Everything lives in this browser's localStorage. Nothing leaves your computer.</p>
+    <div class="datasafe">
+      <button type="button" class="ghost" id="exportBtn">Export backup (JSON)</button>
+      <button type="button" class="ghost" id="importBtn">Import backup</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;">
+      <button type="button" class="ghost" id="sampleBtn">Load sample finds</button>
+      <button type="button" class="danger-ghost" id="wipeBtn">Clear everything</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Flip Ledger &middot; an offline tool by <strong>Asdale Dynamics, LLC</strong> &middot; MIT License &middot; works fully from a single file, no network required.
+  </footer>
+</div>
+
+<script>
+/* ==== CORE-START (pure logic; test harness extracts this block) ==== */
+var FLIP_CATEGORIES = [
+  "Vinyl Records",
+  "Pyrex & Corningware",
+  "Vintage Tees & Denim",
+  "Tools & Hardware",
+  "Cameras & Film Gear",
+  "Video Games & Consoles",
+  "Books & Comics",
+  "Toys & Action Figures",
+  "Board Games & Puzzles",
+  "Sports Cards & Memorabilia",
+  "Jewelry & Watches",
+  "Glassware, Mugs & Tumblers",
+  "Lamps & Lighting",
+  "Typewriters & Office",
+  "Musical Gear",
+  "Kitchen Small Appliances",
+  "Holiday & Seasonal",
+  "Craft & Sewing Supplies",
+  "Furniture & Home Accents",
+  "Other / Mixed Lot"
+];
+
+var WEEKLY_PROMPTS = [
+  "What did this week's finds teach you about pricing in your market?",
+  "Which category is your money lane right now, and what's the evidence?",
+  "What would you pass on next time, and why?",
+  "Describe the fastest sale this week. What made it move so quickly?",
+  "What's one photo or title trick that actually worked in your listings?",
+  "Where did comps lie to you this week, and what did that cost you?",
+  "What's sitting unsold, and what's the plan: price cut, bundle, or donate?",
+  "Where did your sourcing time go this week, and was it worth it?",
+  "Which quadrant did most finds land in: sweet spot, bread and butter, hang, or pass?",
+  "Name one habit from this week worth keeping. Why does it work?"
+];
+
+var QUADRANTS = [
+  { key: "funfast", label: "Sweet Spot", blurb: "fun to list, fast to move", cls: "q-sweet" },
+  { key: "funslow", label: "Hobby Hang", blurb: "fun to list, sits a while", cls: "q-hang" },
+  { key: "boringfast", label: "Bread & Butter", blurb: "a drag to list, but sells quick", cls: "q-bread" },
+  { key: "boringslow", label: "Pass Next Time", blurb: "a drag to list and slow to sell", cls: "q-pass" }
+];
+
+function quadrantKey(fun, fast) {
+  if (fun && fast) { return "funfast"; }
+  if (fun && !fast) { return "funslow"; }
+  if (!fun && fast) { return "boringfast"; }
+  return "boringslow";
+}
+
+function quadrantForItem(item) {
+  return quadrantKey(!!item.fun, !!item.fast);
+}
+
+function currency(n) {
+  var cents = Math.round((Number(n) || 0) * 100);
+  var sign = cents < 0 ? "-" : "";
+  var abs = Math.abs(cents);
+  var whole = Math.floor(abs / 100);
+  var frac = String(abs % 100);
+  while (frac.length < 2) { frac = "0" + frac; }
+  return sign + "$" + whole + "." + frac;
+}
+
+function computeTotals(items) {
+  var spent = 0, soldRevenue = 0, soldCost = 0, openCost = 0;
+  var soldCount = 0, listedCount = 0, stashedCount = 0;
+  var best = null, worst = null;
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var cost = Number(it.cost) || 0;
+    var sale = it.status === "sold" ? (Number(it.sale) || 0) : 0;
+    spent += cost;
+    if (it.status === "sold") {
+      soldCount++;
+      soldRevenue += sale;
+      soldCost += cost;
+      var profit = sale - cost;
+      if (!best || profit > best.profit) { best = { name: it.name, profit: profit }; }
+      if (!worst || profit < worst.profit) { worst = { name: it.name, profit: profit }; }
+    } else if (it.status === "listed") {
+      listedCount++;
+      openCost += cost;
+    } else {
+      stashedCount++;
+      openCost += cost;
+    }
+  }
+  var realizedProfit = soldRevenue - soldCost;
+  var roi = soldCost > 0 ? (realizedProfit / soldCost) * 100 : 0;
+  var avgProfit = soldCount > 0 ? realizedProfit / soldCount : 0;
+  return {
+    spent: spent,
+    soldRevenue: soldRevenue,
+    realizedProfit: realizedProfit,
+    roi: roi,
+    avgProfit: avgProfit,
+    soldCount: soldCount,
+    listedCount: listedCount,
+    stashedCount: stashedCount,
+    openCost: openCost,
+    best: best,
+    worst: worst
+  };
+}
+
+function gridCounts(items) {
+  var counts = { funfast: 0, funslow: 0, boringfast: 0, boringslow: 0 };
+  var names = { funfast: [], funslow: [], boringfast: [], boringslow: [] };
+  for (var i = 0; i < items.length; i++) {
+    var k = quadrantForItem(items[i]);
+    counts[k]++;
+    if (names[k].length < 3) { names[k].push(items[i].name); }
+  }
+  return { counts: counts, names: names };
+}
+
+function weekKey(dateObj) {
+  var d = new Date(dateObj.getTime());
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  var week1 = new Date(d.getFullYear(), 0, 4);
+  var wk = 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return d.getFullYear() + "-W" + (wk < 10 ? "0" + wk : wk);
+}
+
+function weeklyPrompt(dateObj) {
+  var key = weekKey(dateObj);
+  var year = parseInt(key.slice(0, 4), 10);
+  var week = parseInt(key.slice(6), 10);
+  var idx = ((year * 53 + week) % WEEKLY_PROMPTS.length + WEEKLY_PROMPTS.length) % WEEKLY_PROMPTS.length;
+  return WEEKLY_PROMPTS[idx];
+}
+
+function validateItem(item) {
+  if (!item || typeof item.name !== "string" || !item.name.trim()) { return "Give the find a name."; }
+  if (!(Number(item.cost) >= 0)) { return "Cost must be zero or more."; }
+  if (item.status === "sold" && !(Number(item.sale) >= 0)) { return "A sold find needs a sale price."; }
+  return null;
+}
+/* ==== CORE-END ==== */
+
+var STORAGE_KEY = "flipledger.v1";
+var QUICK_STATUS_LABEL = { stashed: "Stashed", listed: "Listed", sold: "Sold" };
+
+function loadState() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) { return { items: [], learnings: {} }; }
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") { return { items: [], learnings: {} }; }
+    return {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      learnings: (parsed.learnings && typeof parsed.learnings === "object") ? parsed.learnings : {}
+    };
+  } catch (e) {
+    return { items: [], learnings: {} };
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) { /* storage full or blocked: stay quiet, app still works in-session */ }
+}
+
+var state = loadState();
+var activeFilter = null;
+
+var el = {};
+function $(id) { return document.getElementById(id); }
+
+function init() {
+  el.totals = $("totalsStrip");
+  el.catSel = $("fCategory");
+  el.form = $("addForm");
+  el.saleField = $("saleField");
+  el.grid = $("grid2x2");
+  el.ledgerBody = $("ledgerBody");
+  el.ledgerEmpty = $("ledgerEmpty");
+  el.filterBar = $("filterBar");
+  el.filterLabel = $("filterLabel");
+  el.weekKey = $("weekKey");
+  el.weeklyPrompt = $("weeklyPrompt");
+  el.weeklyText = $("weeklyText");
+  el.weeklyList = $("weeklyList");
+
+  for (var i = 0; i < FLIP_CATEGORIES.length; i++) {
+    var opt = document.createElement("option");
+    opt.value = FLIP_CATEGORIES[i];
+    opt.textContent = FLIP_CATEGORIES[i];
+    el.catSel.appendChild(opt);
+  }
+
+  renderQuadrants();
+  renderTotals();
+  renderGrid();
+  renderLedger();
+  renderWeekly();
+
+  var statusSel = $("fStatus");
+  statusSel.addEventListener("change", function () {
+    el.saleField.style.display = statusSel.value === "sold" ? "" : "none";
+  });
+
+  el.form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var name = $("fName").value.trim();
+    var cost = parseFloat($("fCost").value);
+    var saleRaw = parseFloat($("fSale").value);
+    var item = {
+      id: "f" + Date.now() + Math.floor(Math.random() * 1000),
+      name: name,
+      category: el.catSel.value,
+      cost: isNaN(cost) ? 0 : cost,
+      sale: isNaN(saleRaw) ? null : saleRaw,
+      status: statusSel.value,
+      fun: $("fFun").querySelector("input:checked").value === "yes",
+      fast: $("fFast").querySelector("input:checked").value === "yes",
+      comps: $("fComps").value.trim(),
+      added: new Date().toISOString().slice(0, 10)
+    };
+    var err = validateItem(item);
+    if (err) { alert(err); return; }
+    state.items.unshift(item);
+    saveState();
+    el.form.reset();
+    statusSel.value = "stashed";
+    el.saleField.style.display = "none";
+    document.querySelector('#fFun input[value="yes"]').checked = true;
+    document.querySelector('#fFast input[value="yes"]').checked = true;
+    renderAll();
+  });
+
+  $("clearFilter").addEventListener("click", function () {
+    activeFilter = null;
+    renderGrid();
+    renderLedger();
+  });
+
+  $("saveWeekly").addEventListener("click", saveWeekly);
+
+  $("exportBtn").addEventListener("click", exportBackup);
+  $("importBtn").addEventListener("click", function () { $("importFile").click(); });
+  $("importFile").addEventListener("change", importBackup);
+  $("sampleBtn").addEventListener("click", loadSample);
+  $("wipeBtn").addEventListener("click", wipeAll);
+
+  window.addEventListener("storage", function (ev) {
+    if (ev.key === STORAGE_KEY) {
+      state = loadState();
+      renderAll();
+    }
+  });
+}
+
+function renderAll() {
+  renderTotals();
+  renderGrid();
+  renderLedger();
+  renderWeekly();
+}
+
+function renderTotals() {
+  var t = computeTotals(state.items);
+  var roiLabel = t.soldCount > 0 ? (t.roi >= 0 ? "+" : "") + Math.round(t.roi) + "%" : "\u2014";
+  var bestLabel = t.best ? t.best.name + " (" + currency(t.best.profit) + ")" : "\u2014";
+  el.totals.innerHTML = "";
+  var stats = [
+    { label: "Spent", value: currency(t.spent), plain: true },
+    { label: "Sold revenue", value: currency(t.soldRevenue), plain: true },
+    { label: "Realized profit", value: currency(t.realizedProfit), okClass: t.realizedProfit >= 0 ? "ok" : "bad" },
+    { label: "ROI on sold", value: roiLabel, okClass: t.roi >= 0 ? "ok" : "bad" },
+    { label: "Sold / open finds", value: t.soldCount + " / " + (t.listedCount + t.stashedCount), plain: true },
+    { label: "Money still out", value: currency(t.openCost), plain: true }
+  ];
+  for (var i = 0; i < stats.length; i++) {
+    var s = stats[i];
+    var div = document.createElement("div");
+    div.className = "stat";
+    if (s.okClass) {
+      div.className += " profit";
+      div.innerHTML = '<span class="label">' + s.label + '</span><span class="value ' + s.okClass + '">' + s.value + "</span>";
+    } else {
+      div.innerHTML = '<span class="label">' + s.label + '</span><span class="value">' + s.value + "</span>";
+    }
+    el.totals.appendChild(div);
+  }
+  if (state.items.length > 0) {
+    var bestDiv = document.createElement("div");
+    bestDiv.className = "stat";
+    bestDiv.style.gridColumn = "1 / -1";
+    bestDiv.innerHTML = '<span class="label">Best flip so far</span><span class="value" style="font-size:1rem;">' + escapeHtml(bestLabel) + "</span>";
+    el.totals.appendChild(bestDiv);
+  }
+}
+
+function renderQuadrants() {
+  el.grid.innerHTML = "";
+  for (var i = 0; i < QUADRANTS.length; i++) {
+    var q = QUADRANTS[i];
+    var div = document.createElement("div");
+    div.className = "quad " + q.cls;
+    div.dataset.quadKey = q.key;
+    div.addEventListener("click", (function (key) {
+      return function () { toggleFilter(key); };
+    })(q.key));
+    div.innerHTML =
+      '<div class="q-label">' + q.label + "</div>" +
+      '<div class="q-blurb">' + q.blurb + "</div>" +
+      '<div class="q-count">0</div>' +
+      '<div class="q-top"></div>';
+    el.grid.appendChild(div);
+  }
+}
+
+function renderGrid() {
+  var g = gridCounts(state.items);
+  var cells = el.grid.children;
+  for (var i = 0; i < cells.length; i++) {
+    var cell = cells[i];
+    var k = cell.dataset.quadKey;
+    cell.querySelector(".q-count").textContent = g.counts[k];
+    cell.querySelector(".q-top").textContent = g.names[k].length > 0 ? g.names[k].join(", ") : "empty for now";
+    if (activeFilter === k) {
+      cell.className = "quad " + QUADRANTS.filter(function (q) { return q.key === k; })[0].cls + " active";
+    } else {
+      cell.className = "quad " + QUADRANTS.filter(function (q) { return q.key === k; })[0].cls;
+    }
+  }
+}
+
+function toggleFilter(key) {
+  activeFilter = activeFilter === key ? null : key;
+  renderGrid();
+  renderLedger();
+}
+
+function renderLedger() {
+  el.ledgerBody.innerHTML = "";
+  var shown = state.items;
+  if (activeFilter) {
+    shown = shown.filter(function (it) { return quadrantForItem(it) === activeFilter; });
+    var q = QUADRANTS.filter(function (x) { return x.key === activeFilter; })[0];
+    el.filterLabel.textContent = "Showing: " + q.label;
+    el.filterBar.style.display = "";
+  } else {
+    el.filterBar.style.display = "none";
+  }
+  el.ledgerEmpty.style.display = shown.length > 0 ? "none" : "";
+  for (var i = 0; i < shown.length; i++) {
+    el.ledgerBody.appendChild(ledgerRow(shown[i]));
+  }
+}
+
+function ledgerRow(item) {
+  var tr = document.createElement("tr");
+  var profit = item.status === "sold" ? (Number(item.sale) || 0) - (Number(item.cost) || 0) : null;
+  var quadrant = QUADRANTS.filter(function (q) { return q.key === quadrantForItem(item); })[0];
+
+  var tdName = document.createElement("td");
+  tdName.innerHTML = "<strong>" + escapeHtml(item.name) + "</strong>" +
+    '<br><span style="font-size:0.72rem;color:var(--muted);">' + escapeHtml(item.added || "") + "</span>";
+  tr.appendChild(tdName);
+
+  var tdCat = document.createElement("td");
+  tdCat.textContent = item.category;
+  tr.appendChild(tdCat);
+
+  var tdCost = document.createElement("td");
+  tdCost.className = "num";
+  tdCost.textContent = currency(item.cost);
+  tr.appendChild(tdCost);
+
+  var tdSale = document.createElement("td");
+  tdSale.className = "num";
+  if (item.status === "sold") {
+    tdSale.textContent = currency(item.sale);
+  } else {
+    tdSale.innerHTML = '<span class="comps-note">&mdash;</span>';
+  }
+  tr.appendChild(tdSale);
+
+  var tdProfit = document.createElement("td");
+  tdProfit.className = "num";
+  if (profit !== null) {
+    tdProfit.innerHTML = '<span class="' + (profit >= 0 ? "money-in" : "money-out") + '">' + currency(profit) + "</span>";
+  } else {
+    tdProfit.innerHTML = '<span class="comps-note">pending</span>';
+  }
+  tr.appendChild(tdProfit);
+
+  var tdStatus = document.createElement("td");
+  tdStatus.innerHTML = '<span class="badge ' + item.status.slice(0, 2) + '">' + QUICK_STATUS_LABEL[item.status] + "</span>";
+  tr.appendChild(tdStatus);
+
+  var tdComps = document.createElement("td");
+  tdComps.innerHTML = '<span class="comps-note">' + escapeHtml(item.comps || "no comps note yet") + "</span>" +
+    '<br><span class="badge ' + quadrant.cls + '" style="background:transparent;color:inherit;">' + quadrant.label + "</span>";
+  tr.appendChild(tdComps);
+
+  var tdActions = document.createElement("td");
+  tdActions.style.whiteSpace = "nowrap";
+  tdActions.className = "num";
+  if (item.status !== "sold") {
+    var soldBtn = document.createElement("button");
+    soldBtn.type = "button";
+    soldBtn.className = "tiny";
+    soldBtn.textContent = "Sold";
+    soldBtn.addEventListener("click", function () {
+      var editor = tdActions.querySelector(".sale-editor");
+      if (editor) { editor.classList.toggle("open"); }
+    });
+    tdActions.appendChild(soldBtn);
+    var editor = document.createElement("span");
+    editor.className = "sale-editor";
+    var saleInput = document.createElement("input");
+    saleInput.type = "number";
+    saleInput.min = "0";
+    saleInput.step = "0.01";
+    saleInput.placeholder = "$ sale";
+    var okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.className = "tiny";
+    okBtn.textContent = "OK";
+    okBtn.addEventListener("click", function () {
+      var v = parseFloat(saleInput.value);
+      if (!(v >= 0)) { alert("Enter the sale price it actually fetched."); return; }
+      item.status = "sold";
+      item.sale = v;
+      saveState();
+      renderAll();
+    });
+    editor.appendChild(saleInput);
+    editor.appendChild(okBtn);
+    tdActions.appendChild(editor);
+  }
+  var delBtn = document.createElement("button");
+  delBtn.type = "button";
+  delBtn.className = "tiny danger-ghost";
+  delBtn.textContent = "Delete";
+  delBtn.addEventListener("click", function () {
+    if (confirm('Remove "' + item.name + '" from the ledger? This cannot be undone.')) {
+      state.items = state.items.filter(function (it) { return it.id !== item.id; });
+      saveState();
+      renderAll();
+    }
+  });
+  tdActions.appendChild(document.createElement("br"));
+  tdActions.appendChild(delBtn);
+  tr.appendChild(tdActions);
+
+  return tr;
+}
+
+function renderWeekly() {
+  var now = new Date();
+  var key = weekKey(now);
+  el.weekKey.textContent = "Week " + key;
+  el.weeklyPrompt.textContent = weeklyPrompt(now);
+  el.weeklyText.value = state.learnings[key] || "";
+  el.weeklyList.innerHTML = "";
+  var keys = Object.keys(state.learnings).sort().reverse();
+  if (keys.length > 0) {
+    var h = document.createElement("h3");
+    h.textContent = "Past takeaways";
+    el.weeklyList.appendChild(h);
+  }
+  for (var i = 0; i < keys.length; i++) {
+    (function (k) {
+      var entry = document.createElement("div");
+      entry.className = "learn-entry";
+      var head = document.createElement("div");
+      head.className = "le-head";
+      var wkLabel = document.createElement("span");
+      wkLabel.textContent = "Week " + k;
+      var del = document.createElement("button");
+      del.type = "button";
+      del.textContent = "delete";
+      del.addEventListener("click", function () {
+        if (confirm("Delete the takeaway from week " + k + "?")) {
+          delete state.learnings[k];
+          saveState();
+          renderWeekly();
+        }
+      });
+      head.appendChild(wkLabel);
+      head.appendChild(del);
+      var body = document.createElement("p");
+      body.textContent = state.learnings[k];
+      entry.appendChild(head);
+      entry.appendChild(body);
+      el.weeklyList.appendChild(entry);
+    })(keys[i]);
+  }
+}
+
+function saveWeekly() {
+  var key = weekKey(new Date());
+  var text = el.weeklyText.value.trim();
+  if (!text) {
+    alert("Write a few plain words first, even messy ones.");
+    return;
+  }
+  state.learnings[key] = text;
+  saveState();
+  renderWeekly();
+}
+
+function exportBackup() {
+  var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "flip-ledger-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importBackup(ev) {
+  var file = ev.target.files[0];
+  if (!file) { return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    try {
+      var parsed = JSON.parse(reader.result);
+      if (!parsed || !Array.isArray(parsed.items)) { throw new Error("bad shape"); }
+      if (state.items.length > 0 && !confirm("Replace what's currently in the ledger with this backup?")) {
+        return;
+      }
+      state = {
+        items: parsed.items,
+        learnings: (parsed.learnings && typeof parsed.learnings === "object") ? parsed.learnings : {}
+      };
+      saveState();
+      renderAll();
+    } catch (e) {
+      alert("That file doesn't look like a Flip Ledger backup.");
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = "";
+}
+
+function loadSample() {
+  if (state.items.length > 0 && !confirm("Add sample finds on top of your current ledger? (Cancel keeps it as-is.)")) {
+    return;
+  }
+  var today = new Date().toISOString().slice(0, 10);
+  var sample = [
+    { id: "s1", name: "Pyrex butterprint casserole w/ lid", category: "Pyrex & Corningware", cost: 4, sale: 32, status: "sold", fun: true, fast: true, comps: "3 solds $25-$38, fastest 2 days; chips on lids kill deals", added: today },
+    { id: "s2", name: "Levi's 505 Made in USA, 36x32", category: "Vintage Tees & Denim", cost: 6, sale: 0, status: "listed", fun: false, fast: true, comps: "sold pairs $20-$45; men's 36 waist moves", added: today },
+    { id: "s3", name: "Sony Discman D-131", category: "Cameras & Film Gear", cost: 8, sale: 0, status: "stashed", fun: true, fast: false, comps: "untested solds $15; working units $40+, worth testing first", added: today },
+    { id: "s4", name: "Assorted craft paint + wooden shapes", category: "Craft & Sewing Supplies", cost: 5, sale: 7, status: "sold", fun: false, fast: false, comps: "barely got breathing room; bundling was the only exit", added: today },
+    { id: "s5", name: "Mario Kart 64 loose cart", category: "Video Games & Consoles", cost: 15, sale: 38, status: "sold", fun: false, fast: true, comps: "cleaned pins, 2 solds $34-$40 same week", added: today },
+    { id: "s6", name: "Fiestaware periwinkle bud vase", category: "Glassware, Mugs & Tumblers", cost: 3, sale: 0, status: "listed", fun: true, fast: true, comps: "sold singles $18-$28; full color runs sell faster", added: today }
+  ];
+  for (var i = 0; i < sample.length; i++) {
+    state.items.unshift(sample[i]);
+  }
+  saveState();
+  renderAll();
+}
+
+function wipeAll() {
+  if (!confirm("Clear ALL finds and weekly takeaways stored in this browser? Export a backup first if you need it.")) {
+    return;
+  }
+  state = { items: [], learnings: {} };
+  saveState();
+  activeFilter = null;
+  renderAll();
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+window.FLIPCORE = {
+  FLIP_CATEGORIES: FLIP_CATEGORIES,
+  WEEKLY_PROMPTS: WEEKLY_PROMPTS,
+  QUADRANTS: QUADRANTS,
+  quadrantKey: quadrantKey,
+  quadrantForItem: quadrantForItem,
+  currency: currency,
+  computeTotals: computeTotals,
+  gridCounts: gridCounts,
+  weekKey: weekKey,
+  weeklyPrompt: weeklyPrompt,
+  validateItem: validateItem
+};
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
